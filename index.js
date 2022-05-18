@@ -1,9 +1,10 @@
 const express = require("express");
 const fs = require("fs");
 const mysql = require("mysql");
-var bodyParser = require('body-parser')
-
-const port = 7200;
+const bodyParser = require('body-parser')
+const cors = require("cors");
+const environment = require("../environment.json");
+const port = environment.backEndPort || 7200;
 
 const app = express();
 
@@ -19,9 +20,10 @@ app.listen(port, ()=>{
 
 function register(req, res, next) {
     let connection = mysql.createConnection({
-        user: "root",
-        password: "",
-        database: "translatorpanel",
+        host: environment.mysqlHost,
+        user: environment.mysqlUser,
+        password: environment.mysqlPassword,
+        database: environment.mysqlDatabase
     });
 
     let insertionValues = [null, req.body.username, req.body.password, new Date(), req.body.email, new Date(req.body.birthdate), 0, "Translator", "default-1.png", req.body.languages.join(",")]
