@@ -18,7 +18,7 @@ let connection = new mysql.createConnection({
 })
 
 app.get("/userExists/:username", (req, res)=>{
-    if (!req.params.username) return res.status(200).send({exists: false});
+    if (!req.params.username) return res.status(200).json({exists: false});
     connection.query(`SELECT id FROM users WHERE username="${req.params.username}"`, (err, response)=>{
         if (err) {
             res.status(500);
@@ -30,6 +30,20 @@ app.get("/userExists/:username", (req, res)=>{
         else res.json({exists: true});
     });
 });
+
+app.get("/emailTaken/:email",(req, res)=> {
+    if (!req.params.email) return res.status(200).json({taken: false});
+    connection.query(`SELECT id FROM users WHERE email="${req.params.email}"`, (err, response)=>{
+        if (err) {
+            res.status(500);
+            res.end();
+            return;
+        }
+        res.status(200);
+        if (response.length==0) return res.json({taken: false});
+        else res.json({taken: true});
+    });
+})
 
 app.post("/register", (req, res) => {
     res.status(200).json({
