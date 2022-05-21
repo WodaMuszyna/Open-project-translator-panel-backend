@@ -1,6 +1,6 @@
 const express = require("express");
 // const fs = require("fs");
-// const mysql = require("mysql");
+const mysql = require("mysql");
 const bodyParser = require('body-parser')
 const cors = require("cors");
 const environment = require("../environment.json");
@@ -10,12 +10,35 @@ const app = express();
 
 app.use(bodyParser.json());
 app.use(cors());
+let connection = new mysql.createConnection({
+    host: environment.mysqlHost,
+    user: environment.mysqlUser,
+    password: environment.mysqlPassword,
+    database: environment.mysqlDatabase
+})
+
+app.get("/userExists/:username", (req, res)=>{
+    if (!req.params.username) return res.status(200).send({exists: false});
+    connection.query(`SELECT id FROM users WHERE username="${req.params.username}"`, (err, response)=>{
+        if (err) {
+            res.status(500);
+            res.end();
+            return;
+        }
+        res.status(200);
+        if (response.length==0) return res.json({exists: false});
+        else res.json({exists: true});
+    });
+});
 
 app.post("/register", (req, res) => {
-    console.log(req.body)
     res.status(200).json({
         "message": "SUCCESS"
     });
+})
+
+app.get("*", (req, res)=>{
+    res.json({});
 })
 
 app.listen(port, () => {
