@@ -37,6 +37,17 @@ app.get("/emailTaken/:email", (req, res) => {
     });
 })
 
+app.get("/supportedLanguages", (req, res) => {
+    connection.query("SELECT id FROM languages;", (err, response) => {
+        if (err) { res.status(500); res.end(); return; }
+        let languages = new Array();
+        for (let i = 0; i < response.length; i++) {
+            languages.push(response[i].id);
+        }
+        res.status(200).json({ languages: languages}).end();
+    })
+})
+
 app.post("/register", async (req, res) => {
     let pass = await argon2.hash(req.body.password);
     let insertionValues = [
@@ -51,7 +62,7 @@ app.post("/register", async (req, res) => {
         1,
         req.body.languages.join(",")
     ]
-    connection.query(`INSERT INTO users(id, username, surname, name, password, email, birthdate, blocked, rankId, languages) VALUES (?)`, [insertionValues], (err, response)=>{
+    connection.query(`INSERT INTO users(id, username, surname, name, password, email, birthdate, blocked, rankId, languages) VALUES (?)`, [insertionValues], (err, response) => {
         if (err) { res.status(500); res.end(); return; }
         res.status(200).json({
             message: "Success"
