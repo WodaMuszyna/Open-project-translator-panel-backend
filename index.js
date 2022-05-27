@@ -80,7 +80,8 @@ app.post("/login", (req, res) => {
         else if (await argon2.verify(response[0].password, req.body.password)) message = "Success"
         else message = "Invalid credentials";
         res.status(200).json({
-            message: message
+            message: message,
+            username: response[0]?.username
         });
         res.end();
     })
