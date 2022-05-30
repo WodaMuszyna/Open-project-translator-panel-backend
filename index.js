@@ -5,11 +5,16 @@ const cors = require("cors");
 const environment = require("../environment.json");
 const port = environment.backEndPort || 7200;
 const argon2 = require("argon2");
+const jwt  = require("jsonwebtoken");
+const fs = require("fs")
 
 const app = express();
 
 app.use(bodyParser.json());
 app.use(cors());
+
+const RSA_PRIVATE_KEY = fs.readFileSync('./private.key');
+
 let connection = new mysql.createConnection({
     host: environment.mysqlHost,
     user: environment.mysqlUser,
@@ -63,10 +68,10 @@ app.post("/register", async (req, res) => {
         req.body.languages.join(",")
     ]
     connection.query(`INSERT INTO users(id, username, surname, name, password, email, birthdate, blocked, rankId, languages) VALUES (?)`, [insertionValues], (err, response) => {
-        if (err) { res.status(500); res.end(); return; }
+        if (err) { res.status(500); res.end(); return; };
         res.status(200).json({
             message: "Success"
-        })
+        });
     });
 });
 
@@ -74,16 +79,31 @@ app.post("/login", (req, res) => {
     let typeOfLogin = "username";
     if (req.body.emailOrUsername.includes("@")) typeOfLogin = "email";
     connection.query(`SELECT * FROM users WHERE ${typeOfLogin}="${req.body.emailOrUsername}";`, async (err, response) => {
-        if (err) { res.status(500); res.end(); return; }
+        if (err) { res.status(500); res.end(); return; };
         let message;
-        if (response.length === 0) message = "Invalid credentials"
-        else if (await argon2.verify(response[0].password, req.body.password)) message = "Success"
-        else message = "Invalid credentials";
+        if (response.length === 0 || !await argon2.verify(response[0].password, req.body.password)) {
+            res.json({message: "Invalid credentials"});
+            return;
+        }
+        const jwtBearerToken = jwt.sign({}, RSA_PRIVATE_KEY, {
+            algorithm: 'RS256',
+            expiresIn: 2592000,
+            subject: response[0].username
+        });
         res.status(200).json({
-            message: message,
-            username: response[0]?.username
+            message: "Success",
+            username: response[0].username,
+            jwtToken: jwtBearerToken,
+            expiresIn: 2592000
         });
         res.end();
+    })
+})
+
+app.post("/authenticate", (req, res)=>{
+    jwt.verify(req.body.jwtToken, RSA_PRIVATE_KEY, {algorithms:'RS256'}, (err, decoded)=>{
+        if (err) return res.json({valid:false, err: err})
+        return res.json({valid: true});
     })
 })
 
