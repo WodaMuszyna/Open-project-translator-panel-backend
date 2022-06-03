@@ -13,19 +13,32 @@ const app = express();
 app.use(bodyParser.json());
 app.use(cors());
 
-const RSA_PRIVATE_KEY = fs.readFileSync('./private.key');
+const PRIVATE_KEY = fs.readFileSync('./private.key');
 
-let connection = new mysql.createConnection({
-    host: environment.mysqlHost,
-    user: environment.mysqlUser,
-    password: environment.mysqlPassword,
-    database: environment.mysqlDatabase
-})
+function authenticateToken(req, res) {
+    const authHeader = req.headers['authorization']
+    const token = authHeader && authHeader.split(' ')[1]
+    if (token == null) return res.sendStatus(401)
+    jwt.verify(token, PRIVATE_KEY, {algorithms:'RS256'}, (err, user) => {
+        if (err) return res.sendStatus(403)
+        req.user = user;
+    });
+}
+let mysqlConnect = () => {
+    return new mysql.createConnection({
+        host: environment.mysqlHost,
+        user: environment.mysqlUser,
+        password: environment.mysqlPassword,
+        database: environment.mysqlDatabase
+    });
+};
+app.get("/userExists", (req,res)=>{return res.status(200).json({message: "OK"}).end()});
+app.get("/emailTaken", (req,res)=>{return res.status(200).json({message: "OK"}).end()});
 
 app.get("/userExists/:username", (req, res) => {
     if (!req.params.username) return res.status(200).json({ exists: false });
-    connection.query(`SELECT id FROM users WHERE username="${req.params.username}";`, (err, response) => {
-        if (err) { res.status(500); res.end(); return; }
+    mysqlConnect().query(`SELECT id FROM users WHERE username="${req.params.username}";`, (err, response) => {
+        if (err) { res.sendStatus(500).end(); return; }
         res.status(200);
         if (response.length == 0) return res.json({ exists: false });
         else res.json({ exists: true });
@@ -34,8 +47,8 @@ app.get("/userExists/:username", (req, res) => {
 
 app.get("/emailTaken/:email", (req, res) => {
     if (!req.params.email) return res.status(200).json({ taken: false });
-    connection.query(`SELECT id FROM users WHERE email="${req.params.email}";`, (err, response) => {
-        if (err) { res.status(500); res.end(); return; }
+    mysqlConnect().query(`SELECT id FROM users WHERE email="${req.params.email}";`, (err, response) => {
+        if (err) { res.sendStatus(500).end(); return; }
         res.status(200);
         if (response.length == 0) return res.json({ taken: false });
         else res.json({ taken: true });
@@ -43,8 +56,8 @@ app.get("/emailTaken/:email", (req, res) => {
 })
 
 app.get("/supportedLanguages", (req, res) => {
-    connection.query("SELECT id FROM languages;", (err, response) => {
-        if (err) { res.status(500); res.end(); return; }
+    mysqlConnect().query("SELECT id FROM languages;", (err, response) => {
+        if (err) { res.sendStatus(500); res.end(); return; }
         let languages = new Array();
         for (let i = 0; i < response.length; i++) {
             languages.push(response[i].id);
@@ -68,7 +81,7 @@ app.post("/register", async (req, res) => {
         req.body.languages.join(",")
     ]
     connection.query(`INSERT INTO users(id, username, surname, name, password, email, birthdate, blocked, rankId, languages) VALUES (?)`, [insertionValues], (err, response) => {
-        if (err) { res.status(500); res.end(); return; };
+        if (err) { res.sendStatus(500); res.end(); return; };
         res.status(200).json({
             message: "Success"
         });
@@ -78,37 +91,34 @@ app.post("/register", async (req, res) => {
 app.post("/login", (req, res) => {
     let typeOfLogin = "username";
     if (req.body.emailOrUsername.includes("@")) typeOfLogin = "email";
-    connection.query(`SELECT * FROM users WHERE ${typeOfLogin}="${req.body.emailOrUsername}";`, async (err, response) => {
-        if (err) { res.status(500); res.end(); return; };
+    mysqlConnect().query(`SELECT * FROM users WHERE BINARY ${typeOfLogin}="${req.body.emailOrUsername}";`, async (err, response) => {
+        if (err) { res.sendStatus(500); res.end(); return; };
         let message;
+        res.status(200);
         if (response.length === 0 || !await argon2.verify(response[0].password, req.body.password)) {
-            res.json({message: "Invalid credentials"});
+            res.json({message: "Invalid credentials"}).end();
             return;
         }
-        const jwtBearerToken = jwt.sign({}, RSA_PRIVATE_KEY, {
-            algorithm: 'RS256',
-            expiresIn: 2592000,
-            subject: response[0].username
-        });
-        res.status(200).json({
-            message: "Success",
+        const jwtBearerToken = jwt.sign({
             username: response[0].username,
-            jwtToken: jwtBearerToken,
-            expiresIn: 2592000
+            languages: response[0].languages,
+            rankId: response[0].rankId,
+            blocked: response[0].blocked,
+            birthdate: response[0].birthdate
+        }, PRIVATE_KEY, {
+            expiresIn: 2592000 //30 days
         });
-        res.end();
-    })
-})
 
-app.post("/authenticate", (req, res)=>{
-    jwt.verify(req.body.jwtToken, RSA_PRIVATE_KEY, {algorithms:'RS256'}, (err, decoded)=>{
-        if (err) return res.json({valid:false, err: err})
-        return res.json({valid: true});
+        res.json({
+            message: "Success",
+            jwtToken: jwtBearerToken,
+            expiresIn: 2592000 //30 days
+        }).end();
     })
 })
 
 app.get("*", (req, res) => {
-    res.json({});
+    res.sendStatus(404);
 })
 
 app.listen(port, () => {
