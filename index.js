@@ -86,7 +86,7 @@ app.post("/login", (req, res) => {
         }
         const jwtBearerToken = jwt.sign({
             username: response[0].username,
-            languages: response[0].languages,
+            languages: response[0].languages.split(","),
             rankId: response[0].rankId,
             blocked: response[0].blocked,
             birthdate: response[0].birthdate
