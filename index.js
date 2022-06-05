@@ -15,20 +15,13 @@ app.use(cors());
 
 const PRIVATE_KEY = fs.readFileSync('./private.key');
 
-function authenticateToken(req, res) {
-    const token = req.headers['authorization'];
-    if (token == null) return res.sendStatus(401); //we are guaranteed that we have token (front end ngOnInit, translation-panel.component.ts)
-    jwt.verify(token, PRIVATE_KEY, { algorithms: 'RS256' }, (err, user) => {
-        if (err) return res.status(200).json({ valid: false });
-        res.status(200).json({ valid: true });
-    });
-}
-let mysqlConnect = () => {
+let mysqlConnect = (multipleQueries = false) => {
     return new mysql.createConnection({
         host: environment.mysqlHost,
         user: environment.mysqlUser,
         password: environment.mysqlPassword,
-        database: environment.mysqlDatabase
+        database: environment.mysqlDatabase,
+        multipleStatements: multipleQueries
     });
 };
 
@@ -51,6 +44,23 @@ app.post("/emailTaken", (req, res) => {
         else res.json({ taken: true });
     });
 })
+
+app.post("/languageInformation", (req, res) => {
+    if (!req.body.language) return res.sendStatus(404);
+    mysqlConnect(true).query(`
+        SELECT COUNT(stringKey) as allStrings FROM strings;
+        SELECT COUNT(DISTINCT stringKey) as translatedStrings FROM translations WHERE languageId="${req.body.language}";
+        SELECT COUNT(DISTINCT stringKey) as approvedStrings FROM translations WHERE languageId="${req.body.language}" AND approved=1;
+        SELECT COUNT(DISTINCT userId) as contributors FROM translations WHERE languageId="${req.body.language}";
+    `, (err, response) => {
+        res.status(200).json({
+            availableStrings: response[0][0].allStrings,
+            translatedStrings: response[1][0].translatedStrings,
+            approved: response[2][0].approvedStrings,
+            numberOfContributors: response[3][0].contributors
+        }).end();
+    })
+});
 
 app.get("/supportedLanguages", (req, res) => {
     mysqlConnect().query("SELECT id FROM languages;", (err, response) => {
@@ -103,7 +113,14 @@ app.post("/login", (req, res) => {
     })
 })
 
-app.route("/authenticate").get(authenticateToken);
+app.route("/authenticate").get((req, res) => {
+    const token = req.headers['authorization'];
+    if (token == null) return res.sendStatus(401); //we are guaranteed that we have token (front end ngOnInit, translation-panel.component.ts)
+    jwt.verify(token, PRIVATE_KEY, { algorithms: 'RS256' }, (err, user) => {
+        if (err) return res.status(200).json({ valid: false });
+        res.status(200).json({ valid: true });
+    });
+});
 
 app.get("*", (req, res) => {
     res.sendStatus(404);
