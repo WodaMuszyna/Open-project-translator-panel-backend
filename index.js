@@ -53,6 +53,7 @@ app.post("/languageInformation", (req, res) => {
         SELECT COUNT(DISTINCT stringKey) as approvedStrings FROM translations WHERE languageId="${req.body.language}" AND approved=1;
         SELECT COUNT(DISTINCT userId) as contributors FROM translations WHERE languageId="${req.body.language}";
     `, (err, response) => {
+        //random crash??
         res.status(200).json({
             availableStrings: response[0][0].allStrings,
             translatedStrings: response[1][0].translatedStrings,
@@ -108,10 +109,32 @@ app.post("/login", (req, res) => {
         res.json({
             message: "Success",
             jwtToken: jwtBearerToken,
-            expiresIn: 2592000 //30 days
+            expiresIn: 2592000 //30 days 2590616,546
         }).end();
     })
 })
+
+app.post("/refreshUserInformation", (req, res)=>{
+    // if (!req.body.jwtToken) return res.status(200).json({});
+    let decodedJwtToken = jwt.decode(req.body.jwtToken, {algorithm:"RS256"});
+    let timeDifference = parseInt((new Date(Number(req.body.expiresAt)) - new Date())/1000);
+    mysqlConnect().query(`SELECT username, languages, rankId, blocked, birthdate FROM users WHERE username="${decodedJwtToken.username}";`, (err, response)=>{
+        if (err) { res.sendStatus(500); res.end(); return; };
+        const jwtBearerToken = jwt.sign({
+            username: response[0].username,
+            languages: response[0].languages.split(","),
+            rankId: response[0].rankId,
+            blocked: response[0].blocked,
+            birthdate: response[0].birthdate
+        }, PRIVATE_KEY, {
+            algorithm: "RS256",
+            expiresIn: timeDifference
+        });
+        res.status(200).json({
+            jwtToken: jwtBearerToken
+        });
+    });
+});
 
 app.route("/authenticate").get((req, res) => {
     const token = req.headers['authorization'];
