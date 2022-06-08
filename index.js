@@ -145,8 +145,10 @@ app.route("/authenticate").get((req, res) => {
     });
 });
 
-app.get("/getUsers", (req, res)=>{
-    mysqlConnect().query(`SELECT username, rankId, languages FROM users;`, (err, response)=>{
+app.post("/getUsers", (req, res)=>{
+    let andStatement = "";
+    if (req.body.language) andStatement=`WHERE languages like "%${req.body.language}%"`;
+    mysqlConnect().query(`SELECT username, rankId, languages FROM users ${andStatement};`, (err, response)=>{
         if (err) { res.sendStatus(500); res.end(); return; };
         res.status(200).send(response).end();
     })
