@@ -6,7 +6,13 @@ const environment = require("../environment.json");
 const port = environment.backEndPort || 7200;
 const argon2 = require("argon2");
 const jwt = require("jsonwebtoken");
-const fs = require("fs")
+const fs = require("fs");
+const mongoose = require("mongoose")
+const Log = require("./log.js");
+
+mongoose.connect(environment.mongoUrl, {}, (err)=>{
+    if (err) throw err;
+});
 
 const app = express();
 
@@ -111,6 +117,13 @@ app.post("/login", (req, res) => {
             jwtToken: jwtBearerToken,
             expiresIn: 2592000 //30 days 2590616,546
         }).end();
+
+        new Log({
+            _id: new mongoose.Types.ObjectId(),
+            user: response[0].id,
+            action: "login",
+            actionAppliesTo: response[0].id
+        }).save();
     })
 })
 
