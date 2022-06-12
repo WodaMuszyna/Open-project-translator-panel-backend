@@ -10,10 +10,6 @@ const fs = require("fs");
 const mongoose = require("mongoose")
 const Log = require("./log.js");
 
-mongoose.connect(environment.mongoUrl, {}, (err)=>{
-    if (err) throw err;
-});
-
 const app = express();
 
 app.use(bodyParser.json());
@@ -30,6 +26,12 @@ let mysqlConnect = (multipleQueries = false) => {
         multipleStatements: multipleQueries
     });
 };
+
+let doMongoose = (fc) => {
+    mongoose.connect(environment.mongoUrl, {}).catch(err=>{throw err});
+    fc();
+}
+
 
 app.post("/userExists", (req, res) => {
     if (!req.body.username) return res.status(200).json({ exists: false });
@@ -83,11 +85,21 @@ app.get("/supportedLanguages", (req, res) => {
 app.post("/register", async (req, res) => {
     let pass = await argon2.hash(req.body.password);
     let insertionValues = [null, req.body.username, req.body.surname, req.body.name, pass, req.body.email, req.body.birthdate.split("T")[0], 0, 1, req.body.languages.join(",")]
-    connection.query(`INSERT INTO users(id, username, surname, name, password, email, birthdate, blocked, rankId, languages) VALUES (?)`, [insertionValues], (err, response) => {
+    mysqlConnect().query(`INSERT INTO users(id, username, surname, name, password, email, birthdate, blocked, rankId, languages) VALUES (?)`, [insertionValues], (err, response) => {
         if (err) { res.sendStatus(500); res.end(); return; };
         res.status(200).json({
             message: "Success"
         });
+        
+        let fc = () => {
+            new Log({
+                _id: new mongoose.Types.ObjectId(),
+                user: response.insertId,
+                action: "register",
+                actionAppliesTo: response.insertId
+            }).save();
+        }
+        doMongoose(fc);
     });
 });
 
@@ -118,12 +130,15 @@ app.post("/login", (req, res) => {
             expiresIn: 2592000 //30 days 2590616,546
         }).end();
 
-        new Log({
-            _id: new mongoose.Types.ObjectId(),
-            user: response[0].id,
-            action: "login",
-            actionAppliesTo: response[0].id
-        }).save();
+        let fc = () => {
+            new Log({
+                _id: new mongoose.Types.ObjectId(),
+                user: response[0].id,
+                action: "login",
+                actionAppliesTo: response[0].id
+            }).save();
+        }
+        doMongoose(fc);
     })
 })
 
