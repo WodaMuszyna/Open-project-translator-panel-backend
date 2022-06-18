@@ -28,7 +28,7 @@ let mysqlConnect = (multipleQueries = false) => {
 };
 
 let doMongoose = (fc) => {
-    mongoose.connect(environment.mongoUrl, {}).catch(err=>{throw err});
+    mongoose.connect(environment.mongoUrl, {}).catch(err => { throw err });
     fc();
 }
 
@@ -62,6 +62,7 @@ app.post("/languageInformation", (req, res) => {
         SELECT COUNT(DISTINCT userId) as contributors FROM translations WHERE languageId="${req.body.language}";
     `, (err, response) => {
         //random crash??
+        if (err) { res.sendStatus(500); res.end(); return; }
         res.status(200).json({
             availableStrings: response[0][0].allStrings,
             translatedStrings: response[1][0].translatedStrings,
@@ -69,6 +70,15 @@ app.post("/languageInformation", (req, res) => {
             numberOfContributors: response[3][0].contributors
         }).end();
     })
+});
+
+app.post("/getLanguageExtended", (req, res) => {
+    //we are guaranteed to have valid language in db
+    mysqlConnect().query(`SELECT * FROM languages where id="${req.body.language}";`, (err, response)=>{
+        console.log(response[0])
+        if (err) { res.sendStatus(500); res.end(); return; }
+        res.status(200).json(response[0]).end();
+    });
 });
 
 app.get("/supportedLanguages", (req, res) => {
@@ -90,7 +100,7 @@ app.post("/register", async (req, res) => {
         res.status(200).json({
             message: "Success"
         });
-        
+
         let fc = () => {
             new Log({
                 _id: new mongoose.Types.ObjectId(),
@@ -142,11 +152,11 @@ app.post("/login", (req, res) => {
     })
 })
 
-app.post("/refreshUserInformation", (req, res)=>{
+app.post("/refreshUserInformation", (req, res) => {
     // if (!req.body.jwtToken) return res.status(200).json({});
-    let decodedJwtToken = jwt.decode(req.body.jwtToken, {algorithm:"RS256"});
-    let timeDifference = parseInt((new Date(Number(req.body.expiresAt)) - new Date())/1000);
-    mysqlConnect().query(`SELECT username, languages, rankId, blocked, birthdate FROM users WHERE username="${decodedJwtToken.username}";`, (err, response)=>{
+    let decodedJwtToken = jwt.decode(req.body.jwtToken, { algorithm: "RS256" });
+    let timeDifference = parseInt((new Date(Number(req.body.expiresAt)) - new Date()) / 1000);
+    mysqlConnect().query(`SELECT username, languages, rankId, blocked, birthdate FROM users WHERE username="${decodedJwtToken.username}";`, (err, response) => {
         if (err) { res.sendStatus(500); res.end(); return; };
         const jwtBearerToken = jwt.sign({
             username: response[0].username,
@@ -173,10 +183,10 @@ app.route("/authenticate").get((req, res) => {
     });
 });
 
-app.post("/getUsers", (req, res)=>{
+app.post("/getUsers", (req, res) => {
     let whereStatement = "";
-    if (req.body.language) whereStatement=`WHERE languages like "%${req.body.language}%"`;
-    mysqlConnect().query(`SELECT username, rankId, languages FROM users ${whereStatement} ORDER BY rankId DESC;`, (err, response)=>{
+    if (req.body.language) whereStatement = `WHERE languages like "%${req.body.language}%"`;
+    mysqlConnect().query(`SELECT username, rankId, languages FROM users ${whereStatement} ORDER BY rankId DESC;`, (err, response) => {
         if (err) { res.sendStatus(500); res.end(); return; };
         res.status(200).send(response).end();
     })
