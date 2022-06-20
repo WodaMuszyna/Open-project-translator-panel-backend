@@ -75,7 +75,6 @@ app.post("/languageInformation", (req, res) => {
 app.post("/getLanguageExtended", (req, res) => {
     //we are guaranteed to have valid language in db
     mysqlConnect().query(`SELECT * FROM languages where id="${req.body.language}";`, (err, response)=>{
-        console.log(response[0])
         if (err) { res.sendStatus(500); res.end(); return; }
         res.status(200).json(response[0]).end();
     });
@@ -137,7 +136,7 @@ app.post("/login", (req, res) => {
         res.json({
             message: "Success",
             jwtToken: jwtBearerToken,
-            expiresIn: 2592000 //30 days 2590616,546
+            expiresIn: 2592000 //30 days
         }).end();
 
         let fc = () => {
