@@ -173,6 +173,26 @@ app.post("/refreshUserInformation", (req, res) => {
     });
 });
 
+app.post("/getFullUserInformation", (req, res)=>{
+    if (!req.body.username) return;
+    mysqlConnect().query(`SELECT id, username, surname, name, creationDate, email, birthdate, blocked, rankId, languages FROM users WHERE username="${req.body.username}";`, (err,response)=>{
+        if (err) { res.sendStatus(500); res.end(); return; };
+        res.status(200).json({
+            id: response[0].id, 
+            username: response[0].username, 
+            surname: response[0].surname, 
+            name: response[0].name, 
+            creationDate: new Date(response[0].creationDate), 
+            email: response[0].email, 
+            birthdate: new Date(response[0].birthdate), 
+            blocked: response[0].blocked, 
+            rankId: response[0].rankId, 
+            languages: response[0].languages.split(",")
+        }).end();
+    })
+})
+
+
 app.route("/authenticate").get((req, res) => {
     const token = req.headers['authorization'];
     if (token == null) return res.sendStatus(401); //we are guaranteed that we have token (front end ngOnInit, translation-panel.component.ts)
