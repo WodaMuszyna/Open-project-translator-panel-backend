@@ -205,7 +205,7 @@ app.route("/authenticate").get((req, res) => {
 app.post("/getUsers", (req, res) => {
     let whereStatement = "";
     if (req.body.language) whereStatement = `WHERE languages like "%${req.body.language}%"`;
-    mysqlConnect().query(`SELECT username, rankId, languages FROM users ${whereStatement} ORDER BY rankId DESC;`, (err, response) => {
+    mysqlConnect().query(`SELECT id, username, rankId, languages FROM users ${whereStatement} ORDER BY rankId DESC;`, (err, response) => {
         if (err) { res.sendStatus(500); res.end(); return; };
         res.status(200).send(response).end();
     })
