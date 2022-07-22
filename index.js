@@ -74,7 +74,7 @@ app.post("/languageInformation", (req, res) => {
 
 app.post("/getLanguageExtended", (req, res) => {
     //we are guaranteed to have valid language in db
-    mysqlConnect().query(`SELECT * FROM languages where id="${req.body.language}";`, (err, response)=>{
+    mysqlConnect().query(`SELECT * FROM languages where id="${req.body.language}";`, (err, response) => {
         if (err) { res.sendStatus(500); res.end(); return; }
         res.status(200).json(response[0]).end();
     });
@@ -173,20 +173,20 @@ app.post("/refreshUserInformation", (req, res) => {
     });
 });
 
-app.post("/getFullUserInformation", (req, res)=>{
+app.post("/getFullUserInformation", (req, res) => {
     if (!req.body.username) return;
-    mysqlConnect().query(`SELECT id, username, surname, name, creationDate, email, birthdate, blocked, rankId, languages FROM users WHERE username="${req.body.username}";`, (err,response)=>{
+    mysqlConnect().query(`SELECT id, username, surname, name, creationDate, email, birthdate, blocked, rankId, languages FROM users WHERE username="${req.body.username}";`, (err, response) => {
         if (err) { res.sendStatus(500); res.end(); return; };
         res.status(200).json({
-            id: response[0].id, 
-            username: response[0].username, 
-            surname: response[0].surname, 
-            name: response[0].name, 
-            creationDate: new Date(response[0].creationDate), 
-            email: response[0].email, 
-            birthdate: new Date(response[0].birthdate), 
-            blocked: response[0].blocked, 
-            rankId: response[0].rankId, 
+            id: response[0].id,
+            username: response[0].username,
+            surname: response[0].surname,
+            name: response[0].name,
+            creationDate: new Date(response[0].creationDate),
+            email: response[0].email,
+            birthdate: new Date(response[0].birthdate),
+            blocked: response[0].blocked,
+            rankId: response[0].rankId,
             languages: response[0].languages.split(",")
         }).end();
     })
@@ -208,6 +208,17 @@ app.post("/getUsers", (req, res) => {
     mysqlConnect().query(`SELECT id, username, rankId, languages FROM users ${whereStatement} ORDER BY rankId DESC;`, (err, response) => {
         if (err) { res.sendStatus(500); res.end(); return; };
         res.status(200).send(response).end();
+    })
+})
+
+
+//strings service
+
+app.route("/getStrings").get((req, res) => {
+    mysqlConnect().query(`SELECT * FROM strings`, (err, response)=>{
+        if (err) { res.sendStatus(500); res.end(); return; };
+        res.status(200).json(response).end();
+        return;
     })
 })
 
