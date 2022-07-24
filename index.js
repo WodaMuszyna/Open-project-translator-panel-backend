@@ -214,10 +214,45 @@ app.post("/getUsers", (req, res) => {
 
 //strings service
 
-app.route("/getStrings").get((req, res) => {
-    mysqlConnect().query(`SELECT * FROM strings`, (err, response)=>{
+app.route("/getStrings").post((req, res) => {
+    if (!req.body.language) { res.sendStatus(200); res.end(); return; }
+    let language = req.body.language;
+    mysqlConnect(true).query(`  SELECT * FROM strings; 
+                                SELECT DISTINCT stringKey FROM translations WHERE languageId="${language}" AND approved=true; 
+                                SELECT DISTINCT stringKey FROM translations WHERE languageId="${language}" AND approved=false; `
+                                , (err, response)=>{
+        let allStrings = response[0].map((o)=>o.stringKey);
+        let approvedStrings = response[1].map((o)=>o.stringKey);
+        let translatedStrings = response[2].map((o)=>o.stringKey);
+        let formattedResponse = new Array();
+        for (let i = 0 ; i < allStrings.length;i++) {
+            if (approvedStrings.includes(allStrings[i])) {
+                formattedResponse.push({
+                    stringKey: allStrings[i],
+                    stringContent: response[0].find(o=>o.stringKey===allStrings[i]).stringContent,
+                    additionalContext: response[0].find(o=>o.stringKey===allStrings[i]).additionalContext || null,
+                    status: "approved"
+                });
+                continue;
+            }
+            if (translatedStrings.includes(allStrings[i])) {
+                formattedResponse.push({
+                    stringKey: allStrings[i],
+                    stringContent: response[0].find(o=>o.stringKey===allStrings[i]).stringContent,
+                    additionalContext: response[0].find(o=>o.stringKey===allStrings[i]).additionalContext || null,
+                    status: "translated"
+                });
+                continue;
+            }
+            formattedResponse.push({
+                stringKey: allStrings[i],
+                stringContent: response[0].find(o=>o.stringKey===allStrings[i]).stringContent,
+                additionalContext: response[0].find(o=>o.stringKey===allStrings[i]).additionalContext || null,
+                status: "pending"
+            });
+        }
         if (err) { res.sendStatus(500); res.end(); return; };
-        res.status(200).json(response).end();
+        res.status(200).json(formattedResponse).end();
         return;
     })
 })
