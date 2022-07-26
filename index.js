@@ -257,6 +257,38 @@ app.route("/getStrings").post((req, res) => {
     })
 })
 
+app.route("/getString").post((req,res)=>{
+    if (!req.body.stringKey) { res.sendStatus(200); res.end(); return; }
+    if (!req.body.language) { res.sendStatus(200); res.end(); return; }
+    let stringKey = req.body.stringKey;
+    let language = req.body.language;
+    mysqlConnect(true).query(`SELECT * FROM strings WHERE stringKey = "${stringKey}"; SELECT * FROM languages WHERE id="${language}";`, (err, response)=>{
+        if (err) { res.sendStatus(500); res.end(); return; };
+        if (response[0].length===0) return res.status(200).json({stringExist: false}).end();
+        if (response[1].length===0) return res.status(200).json({stringExist: false}).end();
+        mysqlConnect().query(`SELECT userId,translation,approved FROM translations WHERE stringKey="${stringKey}";`, (err, translations)=>{
+            if (err) { res.sendStatus(500); res.end(); return; };
+            let availableTranslations = new Array();
+            for (let i = 0 ;i<translations.length;i++) {
+                availableTranslations.push({
+                    userId: translations[i].userId,
+                    translation: translations[i].translation,
+                    approved: translations[i].approved
+                });
+            }
+            let responseJson = {
+                stringExist: true,
+                stringKey: response[0].stringKey,
+                stringContent: response[0].stringContent,
+                additionalContext: (response[0].additionalContext ? response[0].additionalContext : null),
+                availableTranslations: availableTranslations
+            }
+            res.status(200).json(responseJson).end();
+            return;
+        })
+    })
+})
+
 
 app.get("*", (req, res) => {
     res.sendStatus(404);
