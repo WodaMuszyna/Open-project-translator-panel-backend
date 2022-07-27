@@ -278,9 +278,9 @@ app.route("/getString").post((req,res)=>{
             }
             let responseJson = {
                 stringExist: true,
-                stringKey: response[0].stringKey,
-                stringContent: response[0].stringContent,
-                additionalContext: (response[0].additionalContext ? response[0].additionalContext : null),
+                stringKey: response[0][0].stringKey,
+                stringContent: response[0][0].stringContent,
+                additionalContext: (response[0][0].additionalContext ? response[0][0].additionalContext : null),
                 availableTranslations: availableTranslations
             }
             res.status(200).json(responseJson).end();
