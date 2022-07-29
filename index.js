@@ -123,6 +123,7 @@ app.post("/login", (req, res) => {
             return;
         }
         const jwtBearerToken = jwt.sign({
+            userId: response[0].id,
             username: response[0].username,
             languages: response[0].languages.split(","),
             rankId: response[0].rankId,
@@ -155,9 +156,10 @@ app.post("/refreshUserInformation", (req, res) => {
     // if (!req.body.jwtToken) return res.status(200).json({});
     let decodedJwtToken = jwt.decode(req.body.jwtToken, { algorithm: "RS256" });
     let timeDifference = parseInt((new Date(Number(req.body.expiresAt)) - new Date()) / 1000);
-    mysqlConnect().query(`SELECT username, languages, rankId, blocked, birthdate FROM users WHERE username="${decodedJwtToken.username}";`, (err, response) => {
+    mysqlConnect().query(`SELECT id,username, languages, rankId, blocked, birthdate FROM users WHERE username="${decodedJwtToken.username}";`, (err, response) => {
         if (err) { res.sendStatus(500); res.end(); return; };
         const jwtBearerToken = jwt.sign({
+            userId:response[0].id,
             username: response[0].username,
             languages: response[0].languages.split(","),
             rankId: response[0].rankId,
