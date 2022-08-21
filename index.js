@@ -35,27 +35,32 @@ let doMongoose = (fc) => {
 
 app.post("/userExists", (req, res) => {
     if (!req.body.username) return res.status(200).json({ exists: false });
-    mysqlConnect().query(`SELECT id FROM users WHERE username="${req.body.username}";`, (err, response) => {
+    let conn = mysqlConnect();
+    conn.query(`SELECT id FROM users WHERE username="${req.body.username}";`, (err, response) => {
         if (err) { res.sendStatus(500).end(); return; }
         res.status(200);
         if (response.length == 0) return res.json({ exists: false });
         else res.json({ exists: true });
+        return conn.end();
     });
 });
 
 app.post("/emailTaken", (req, res) => {
     if (!req.body.email) return res.status(200).json({ taken: false });
-    mysqlConnect().query(`SELECT id FROM users WHERE email="${req.body.email}";`, (err, response) => {
+    let conn = mysqlConnect();
+    conn.query(`SELECT id FROM users WHERE email="${req.body.email}";`, (err, response) => {
         if (err) { res.sendStatus(500).end(); return; }
         res.status(200);
         if (response.length == 0) return res.json({ taken: false });
         else res.json({ taken: true });
+        return conn.end();
     });
 })
 
 app.post("/languageInformation", (req, res) => {
     if (!req.body.language) return res.sendStatus(404);
-    mysqlConnect(true).query(`
+    let conn = mysqlConnect(true);
+    conn.query(`
         SELECT COUNT(stringKey) as allStrings FROM strings;
         SELECT COUNT(DISTINCT stringKey) as translatedStrings FROM translations WHERE languageId="${req.body.language}";
         SELECT COUNT(DISTINCT stringKey) as approvedStrings FROM translations WHERE languageId="${req.body.language}" AND approved=1;
@@ -69,32 +74,38 @@ app.post("/languageInformation", (req, res) => {
             approved: response[2][0].approvedStrings,
             numberOfContributors: response[3][0].contributors
         }).end();
-    })
+        return conn.end();
+    });
 });
 
 app.post("/getLanguageExtended", (req, res) => {
     //we are guaranteed to have valid language in db
-    mysqlConnect().query(`SELECT * FROM languages where id="${req.body.language}";`, (err, response) => {
+    let conn = mysqlConnect()
+    conn.query(`SELECT * FROM languages where id="${req.body.language}";`, (err, response) => {
         if (err) { res.sendStatus(500); res.end(); return; }
         res.status(200).json(response[0]).end();
+        return conn.end();
     });
 });
 
 app.get("/supportedLanguages", (req, res) => {
-    mysqlConnect().query("SELECT id FROM languages;", (err, response) => {
+    let conn = mysqlConnect();
+    conn.query("SELECT id FROM languages;", (err, response) => {
         if (err) { res.sendStatus(500); res.end(); return; }
         let languages = new Array();
         for (let i = 0; i < response.length; i++) {
             languages.push(response[i].id);
         }
         res.status(200).json({ languages: languages }).end();
-    })
-})
+        return conn.end();
+    });
+});
 
 app.post("/register", async (req, res) => {
     let pass = await argon2.hash(req.body.password);
-    let insertionValues = [null, req.body.username, req.body.surname, req.body.name, pass, req.body.email, req.body.birthdate.split("T")[0], 0, 1, req.body.languages.join(",")]
-    mysqlConnect().query(`INSERT INTO users(id, username, surname, name, password, email, birthdate, blocked, rankId, languages) VALUES (?)`, [insertionValues], (err, response) => {
+    let insertionValues = [null, req.body.username, req.body.surname, req.body.name, pass, req.body.email, req.body.birthdate.split("T")[0], 0, 1, req.body.languages.join(",")];
+    let conn = mysqlConnect();
+    conn.query(`INSERT INTO users(id, username, surname, name, password, email, birthdate, blocked, rankId, languages) VALUES (?)`, [insertionValues], (err, response) => {
         if (err) { res.sendStatus(500); res.end(); return; };
         res.status(200).json({
             message: "Success"
@@ -109,13 +120,15 @@ app.post("/register", async (req, res) => {
             }).save();
         }
         doMongoose(fc);
+        return conn.end();
     });
 });
 
 app.post("/login", (req, res) => {
     let typeOfLogin = "username";
     if (req.body.emailOrUsername.includes("@")) typeOfLogin = "email";
-    mysqlConnect().query(`SELECT * FROM users WHERE BINARY ${typeOfLogin}="${req.body.emailOrUsername}";`, async (err, response) => {
+    let conn = mysqlConnect();
+    conn.query(`SELECT * FROM users WHERE BINARY ${typeOfLogin}="${req.body.emailOrUsername}";`, async (err, response) => {
         if (err) { res.sendStatus(500); res.end(); return; };
         res.status(200);
         if (response.length === 0 || !await argon2.verify(response[0].password, req.body.password)) {
@@ -149,6 +162,7 @@ app.post("/login", (req, res) => {
             }).save();
         }
         doMongoose(fc);
+        return conn.end();
     })
 })
 
@@ -156,7 +170,8 @@ app.post("/refreshUserInformation", (req, res) => {
     // if (!req.body.jwtToken) return res.status(200).json({});
     let decodedJwtToken = jwt.decode(req.body.jwtToken, { algorithm: "RS256" });
     let timeDifference = parseInt((new Date(Number(req.body.expiresAt)) - new Date()) / 1000);
-    mysqlConnect().query(`SELECT id,username, languages, rankId, blocked, birthdate FROM users WHERE username="${decodedJwtToken.username}";`, (err, response) => {
+    let conn = mysqlConnect();
+    conn.query(`SELECT id,username, languages, rankId, blocked, birthdate FROM users WHERE username="${decodedJwtToken.username}";`, (err, response) => {
         if (err) { res.sendStatus(500); res.end(); return; };
         const jwtBearerToken = jwt.sign({
             userId:response[0].id,
@@ -172,12 +187,14 @@ app.post("/refreshUserInformation", (req, res) => {
         res.status(200).json({
             jwtToken: jwtBearerToken
         });
+        return conn.end();
     });
 });
 
 app.post("/getFullUserInformation", (req, res) => {
     if (!req.body.username) return;
-    mysqlConnect().query(`SELECT id, username, surname, name, creationDate, email, birthdate, blocked, rankId, languages FROM users WHERE username="${req.body.username}";`, (err, response) => {
+    let conn = mysqlConnect();
+    conn.query(`SELECT id, username, surname, name, creationDate, email, birthdate, blocked, rankId, languages FROM users WHERE username="${req.body.username}";`, (err, response) => {
         if (err) { res.sendStatus(500); res.end(); return; };
         res.status(200).json({
             id: response[0].id,
@@ -191,8 +208,9 @@ app.post("/getFullUserInformation", (req, res) => {
             rankId: response[0].rankId,
             languages: response[0].languages.split(",")
         }).end();
-    })
-})
+        return conn.end();
+    });
+});
 
 
 app.route("/authenticate").get((req, res) => {
@@ -207,11 +225,13 @@ app.route("/authenticate").get((req, res) => {
 app.post("/getUsers", (req, res) => {
     let whereStatement = "";
     if (req.body.language) whereStatement = `WHERE languages like "%${req.body.language}%"`;
-    mysqlConnect().query(`SELECT id, username, rankId, languages FROM users ${whereStatement} ORDER BY rankId DESC;`, (err, response) => {
+    let conn = mysqlConnect();
+    conn.query(`SELECT id, username, rankId, languages FROM users ${whereStatement} ORDER BY rankId DESC;`, (err, response) => {
         if (err) { res.sendStatus(500); res.end(); return; };
         res.status(200).send(response).end();
-    })
-})
+        return conn.end();
+    });
+});
 
 
 //strings service
@@ -219,10 +239,8 @@ app.post("/getUsers", (req, res) => {
 app.route("/getStrings").post((req, res) => {
     if (!req.body.language) { res.sendStatus(200); res.end(); return; }
     let language = req.body.language;
-    mysqlConnect(true).query(`  SELECT * FROM strings; 
-                                SELECT DISTINCT stringKey FROM translations WHERE languageId="${language}" AND approved=true; 
-                                SELECT DISTINCT stringKey FROM translations WHERE languageId="${language}" AND approved=false; `
-                                , (err, response)=>{
+    let conn = mysqlConnect(true);
+    conn.query(`SELECT * FROM strings; SELECT DISTINCT stringKey FROM translations WHERE languageId="${language}" AND approved=true; SELECT DISTINCT stringKey FROM translations WHERE languageId="${language}" AND approved=false; `, (err, response)=>{
         let allStrings = response[0].map((o)=>o.stringKey);
         let approvedStrings = response[1].map((o)=>o.stringKey);
         let translatedStrings = response[2].map((o)=>o.stringKey);
@@ -255,20 +273,22 @@ app.route("/getStrings").post((req, res) => {
         }
         if (err) { res.sendStatus(500); res.end(); return; };
         res.status(200).json(formattedResponse).end();
-        return;
-    })
-})
+        return conn.end();
+    });
+});
 
 app.route("/getString").post((req,res)=>{
     if (!req.body.stringKey) { res.sendStatus(200); res.end(); return; }
     if (!req.body.language) { res.sendStatus(200); res.end(); return; }
     let stringKey = req.body.stringKey;
     let language = req.body.language;
-    mysqlConnect(true).query(`SELECT * FROM strings WHERE stringKey = "${stringKey}"; SELECT * FROM languages WHERE id="${language}";`, (err, response)=>{
+    let conn = mysqlConnect(true)
+    conn.query(`SELECT * FROM strings WHERE stringKey = "${stringKey}"; SELECT * FROM languages WHERE id="${language}";`, (err, response)=>{
         if (err) { res.sendStatus(500); res.end(); return; };
         if (response[0].length===0) return res.status(200).json({stringExist: false}).end();
         if (response[1].length===0) return res.status(200).json({stringExist: false}).end();
-        mysqlConnect().query(`SELECT userId,translation,approved FROM translations WHERE stringKey="${stringKey}";`, (err, translations)=>{
+        let conn2 = mysqlConnect();
+        conn2.query(`SELECT userId,translation,approved FROM translations WHERE stringKey="${stringKey}";`, (err, translations)=>{
             if (err) { res.sendStatus(500); res.end(); return; };
             let availableTranslations = new Array();
             for (let i = 0 ;i<translations.length;i++) {
@@ -286,6 +306,7 @@ app.route("/getString").post((req,res)=>{
                 availableTranslations: availableTranslations
             }
             res.status(200).json(responseJson).end();
+            conn.end(); conn2.end();
             return;
         })
     })
