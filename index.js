@@ -80,7 +80,7 @@ app.post("/languageInformation", (req, res) => {
 
 app.post("/getLanguageExtended", (req, res) => {
     //we are guaranteed to have valid language in db
-    let conn = mysqlConnect()
+    let conn = mysqlConnect();
     conn.query(`SELECT * FROM languages where id="${req.body.language}";`, (err, response) => {
         if (err) { res.sendStatus(500); res.end(); return; }
         res.status(200).json(response[0]).end();
@@ -174,7 +174,7 @@ app.post("/refreshUserInformation", (req, res) => {
     conn.query(`SELECT id,username, languages, rankId, blocked, birthdate FROM users WHERE username="${decodedJwtToken.username}";`, (err, response) => {
         if (err) { res.sendStatus(500); res.end(); return; };
         const jwtBearerToken = jwt.sign({
-            userId:response[0].id,
+            userId: response[0].id,
             username: response[0].username,
             languages: response[0].languages.split(","),
             rankId: response[0].rankId,
@@ -240,35 +240,21 @@ app.route("/getStrings").post((req, res) => {
     if (!req.body.language) { res.sendStatus(200); res.end(); return; }
     let language = req.body.language;
     let conn = mysqlConnect(true);
-    conn.query(`SELECT * FROM strings; SELECT DISTINCT stringKey FROM translations WHERE languageId="${language}" AND approved=true; SELECT DISTINCT stringKey FROM translations WHERE languageId="${language}" AND approved=false; `, (err, response)=>{
-        let allStrings = response[0].map((o)=>o.stringKey);
-        let approvedStrings = response[1].map((o)=>o.stringKey);
-        let translatedStrings = response[2].map((o)=>o.stringKey);
+    conn.query(`SELECT * FROM strings; SELECT DISTINCT stringKey FROM translations WHERE languageId="${language}" AND approved=true; SELECT DISTINCT stringKey FROM translations WHERE languageId="${language}" AND approved=false; `, (err, response) => {
+        let allStrings = response[0].map((o) => o.stringKey);
+        let approvedStrings = response[1].map((o) => o.stringKey);
+        let translatedStrings = response[2].map((o) => o.stringKey);
         let formattedResponse = new Array();
-        for (let i = 0 ; i < allStrings.length;i++) {
-            if (approvedStrings.includes(allStrings[i])) {
-                formattedResponse.push({
-                    stringKey: allStrings[i],
-                    stringContent: response[0].find(o=>o.stringKey===allStrings[i]).stringContent,
-                    additionalContext: response[0].find(o=>o.stringKey===allStrings[i]).additionalContext || null,
-                    status: "approved"
-                });
-                continue;
-            }
-            if (translatedStrings.includes(allStrings[i])) {
-                formattedResponse.push({
-                    stringKey: allStrings[i],
-                    stringContent: response[0].find(o=>o.stringKey===allStrings[i]).stringContent,
-                    additionalContext: response[0].find(o=>o.stringKey===allStrings[i]).additionalContext || null,
-                    status: "translated"
-                });
-                continue;
-            }
+        for (let i = 0; i < allStrings.length; i++) {
+            let status = "";
+            if (approvedStrings.includes(allStrings[i])) status = "approved";
+            else if (translatedStrings.includes(allStrings[i])) status = "translated";
+            else status = "pending";
             formattedResponse.push({
                 stringKey: allStrings[i],
-                stringContent: response[0].find(o=>o.stringKey===allStrings[i]).stringContent,
-                additionalContext: response[0].find(o=>o.stringKey===allStrings[i]).additionalContext || null,
-                status: "pending"
+                stringContent: response[0].find(o => o.stringKey === allStrings[i]).stringContent,
+                additionalContext: response[0].find(o => o.stringKey === allStrings[i]).additionalContext || null,
+                status: status
             });
         }
         if (err) { res.sendStatus(500); res.end(); return; };
@@ -277,21 +263,21 @@ app.route("/getStrings").post((req, res) => {
     });
 });
 
-app.route("/getString").post((req,res)=>{
+app.route("/getString").post((req, res) => {
     if (!req.body.stringKey) { res.sendStatus(200); res.end(); return; }
     if (!req.body.language) { res.sendStatus(200); res.end(); return; }
     let stringKey = req.body.stringKey;
     let language = req.body.language;
-    let conn = mysqlConnect(true)
-    conn.query(`SELECT * FROM strings WHERE stringKey = "${stringKey}"; SELECT * FROM languages WHERE id="${language}";`, (err, response)=>{
+    let conn = mysqlConnect(true);
+    conn.query(`SELECT * FROM strings WHERE stringKey = "${stringKey}"; SELECT * FROM languages WHERE id="${language}";`, (err, response) => {
         if (err) { res.sendStatus(500); res.end(); return; };
-        if (response[0].length===0) return res.status(200).json({stringExist: false}).end();
-        if (response[1].length===0) return res.status(200).json({stringExist: false}).end();
+        if (response[0].length === 0) return res.status(200).json({ stringExist: false }).end();
+        if (response[1].length === 0) return res.status(200).json({ stringExist: false }).end();
         let conn2 = mysqlConnect();
-        conn2.query(`SELECT userId,translation,approved FROM translations WHERE stringKey="${stringKey}";`, (err, translations)=>{
+        conn2.query(`SELECT userId,translation,approved FROM translations WHERE stringKey="${stringKey}";`, (err, translations) => {
             if (err) { res.sendStatus(500); res.end(); return; };
             let availableTranslations = new Array();
-            for (let i = 0 ;i<translations.length;i++) {
+            for (let i = 0; i < translations.length; i++) {
                 availableTranslations.push({
                     userId: translations[i].userId,
                     translation: translations[i].translation,
@@ -304,7 +290,7 @@ app.route("/getString").post((req,res)=>{
                 stringContent: response[0][0].stringContent,
                 additionalContext: (response[0][0].additionalContext ? response[0][0].additionalContext : null),
                 availableTranslations: availableTranslations
-            }
+            };
             res.status(200).json(responseJson).end();
             conn.end(); conn2.end();
             return;
@@ -315,8 +301,8 @@ app.route("/getString").post((req,res)=>{
 
 app.get("*", (req, res) => {
     res.sendStatus(404);
-})
+});
 
 app.listen(port, () => {
-    console.log(`Listening on port ${port}`)
-})
+    console.log(`Listening on port ${port}`);
+});
