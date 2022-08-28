@@ -33,7 +33,7 @@ let doMongoose = (fc) => {
 }
 
 
-app.post("/userExists", (req, res) => {
+app.route("/userExists").post((req, res) => {
     if (!req.body.username) return res.status(200).json({ exists: false });
     let conn = mysqlConnect();
     conn.query(`SELECT id FROM users WHERE username="${req.body.username}";`, (err, response) => {
@@ -45,7 +45,7 @@ app.post("/userExists", (req, res) => {
     });
 });
 
-app.post("/emailTaken", (req, res) => {
+app.route("/emailTaken").post((req, res) => {
     if (!req.body.email) return res.status(200).json({ taken: false });
     let conn = mysqlConnect();
     conn.query(`SELECT id FROM users WHERE email="${req.body.email}";`, (err, response) => {
@@ -57,7 +57,7 @@ app.post("/emailTaken", (req, res) => {
     });
 })
 
-app.post("/languageInformation", (req, res) => {
+app.route("/languageInformation").post((req, res) => {
     if (!req.body.language) return res.sendStatus(404);
     let conn = mysqlConnect(true);
     conn.query(`
@@ -78,7 +78,7 @@ app.post("/languageInformation", (req, res) => {
     });
 });
 
-app.post("/getLanguageExtended", (req, res) => {
+app.route("/getLanguageExtended").post((req, res) => {
     //we are guaranteed to have valid language in db
     let conn = mysqlConnect();
     conn.query(`SELECT * FROM languages where id="${req.body.language}";`, (err, response) => {
@@ -88,7 +88,7 @@ app.post("/getLanguageExtended", (req, res) => {
     });
 });
 
-app.get("/supportedLanguages", (req, res) => {
+app.route("/supportedLanguages").get( (req, res) => {
     let conn = mysqlConnect();
     conn.query("SELECT id FROM languages;", (err, response) => {
         if (err) { res.sendStatus(500); res.end(); return; }
@@ -101,7 +101,7 @@ app.get("/supportedLanguages", (req, res) => {
     });
 });
 
-app.post("/register", async (req, res) => {
+app.route("/register").post(async (req, res) => {
     let pass = await argon2.hash(req.body.password);
     let insertionValues = [null, req.body.username, req.body.surname, req.body.name, pass, req.body.email, req.body.birthdate.split("T")[0], 0, 1, req.body.languages.join(",")];
     let conn = mysqlConnect();
@@ -124,7 +124,7 @@ app.post("/register", async (req, res) => {
     });
 });
 
-app.post("/login", (req, res) => {
+app.route("/login").post((req, res) => {
     let typeOfLogin = "username";
     if (req.body.emailOrUsername.includes("@")) typeOfLogin = "email";
     let conn = mysqlConnect();
@@ -166,7 +166,7 @@ app.post("/login", (req, res) => {
     })
 })
 
-app.post("/refreshUserInformation", (req, res) => {
+app.route("/refreshUserInformation").post((req, res) => {
     // if (!req.body.jwtToken) return res.status(200).json({});
     let decodedJwtToken = jwt.decode(req.body.jwtToken, { algorithm: "RS256" });
     let timeDifference = parseInt((new Date(Number(req.body.expiresAt)) - new Date()) / 1000);
@@ -191,7 +191,7 @@ app.post("/refreshUserInformation", (req, res) => {
     });
 });
 
-app.post("/getFullUserInformation", (req, res) => {
+app.route("/getFullUserInformation").post((req, res) => {
     if (!req.body.username) return;
     let conn = mysqlConnect();
     conn.query(`SELECT id, username, surname, name, creationDate, email, birthdate, blocked, rankId, languages FROM users WHERE username="${req.body.username}";`, (err, response) => {
@@ -222,7 +222,7 @@ app.route("/authenticate").get((req, res) => {
     });
 });
 
-app.post("/getUsers", (req, res) => {
+app.route("/getUsers").post((req, res) => {
     let whereStatement = "";
     if (req.body.language) whereStatement = `WHERE languages like "%${req.body.language}%"`;
     let conn = mysqlConnect();
@@ -299,7 +299,7 @@ app.route("/getString").post((req, res) => {
 })
 
 
-app.get("*", (req, res) => {
+app.route("*").get((req, res) => {
     res.sendStatus(404);
 });
 
