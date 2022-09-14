@@ -88,7 +88,7 @@ app.route("/getLanguageExtended").post((req, res) => {
     });
 });
 
-app.route("/supportedLanguages").get( (req, res) => {
+app.route("/supportedLanguages").get((req, res) => {
     let conn = mysqlConnect();
     conn.query("SELECT id FROM languages;", (err, response) => {
         if (err) { res.sendStatus(500); res.end(); return; }
@@ -167,7 +167,7 @@ app.route("/login").post((req, res) => {
 })
 
 app.route("/refreshUserInformation").post((req, res) => {
-    // if (!req.body.jwtToken) return res.status(200).json({});
+    // if (!req.body.jwtToken) return res.sendStatus(200);
     let decodedJwtToken = jwt.decode(req.body.jwtToken, { algorithm: "RS256" });
     let timeDifference = parseInt((new Date(Number(req.body.expiresAt)) - new Date()) / 1000);
     let conn = mysqlConnect();
@@ -215,7 +215,7 @@ app.route("/getFullUserInformation").post((req, res) => {
 
 app.route("/authenticate").get((req, res) => {
     const token = req.headers['authorization'];
-    if (token == null) return res.sendStatus(401); //we are guaranteed that we have token (front end ngOnInit, translation-panel.component.ts)
+    if (token == null) return res.sendStatus(401);
     jwt.verify(token, PRIVATE_KEY, { algorithms: 'RS256' }, (err, user) => {
         if (err) return res.status(200).json({ valid: false });
         res.status(200).json({ valid: true });
@@ -232,6 +232,21 @@ app.route("/getUsers").post((req, res) => {
         return conn.end();
     });
 });
+
+app.route("/getMultipleUsers").post((req, res) => {
+    if (req.body.userIds.length===0) return res.status(200).json({});
+    let whereStatement = "SELECT id, username, rankId FROM users WHERE ";
+    for (let i = 0; i < req.body.userIds.length - 1; i++) { whereStatement += `id=${req.body.userIds[i]} OR ` };
+    whereStatement+=`id=${req.body.userIds[req.body.userIds.length-1]};`;
+    let conn = mysqlConnect();
+    conn.query(whereStatement, (err, response) => {
+        if (err) { res.sendStatus(500); res.end(); return; };
+        res.status(200).send(response).end();
+        return conn.end();
+    });
+});
+
+
 
 
 //strings service
@@ -264,7 +279,7 @@ app.route("/getStrings").post((req, res) => {
 });
 
 app.route("/getString").post((req, res) => {
-    if (!req.body.stringKey) { res.sendStatus(200); res.end(); return; }
+    if (!req.body.stringKey || req.body.stringKey==="") { res.sendStatus(200); res.end(); return; }
     if (!req.body.language) { res.sendStatus(200); res.end(); return; }
     let stringKey = req.body.stringKey;
     let language = req.body.language;
