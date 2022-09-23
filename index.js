@@ -34,13 +34,13 @@ let doMongoose = (fc) => {
 
 
 app.route("/userExists").post((req, res) => {
-    if (!req.body.username) return res.status(200).json({ exists: false });
+    if (!req.body.username) return res.status(200).json({ taken: false });
     let conn = mysqlConnect();
     conn.query(`SELECT id FROM users WHERE username="${req.body.username}";`, (err, response) => {
         if (err) { res.sendStatus(500).end(); return; }
         res.status(200);
-        if (response.length == 0) return res.json({ exists: false });
-        else res.json({ exists: true });
+        if (response.length == 0) return res.json({ taken: false });
+        else res.json({ taken: true });
         return conn.end();
     });
 });
@@ -66,7 +66,6 @@ app.route("/languageInformation").post((req, res) => {
         SELECT COUNT(DISTINCT stringKey) as approvedStrings FROM translations WHERE languageId="${req.body.language}" AND approved=1;
         SELECT COUNT(DISTINCT userId) as contributors FROM translations WHERE languageId="${req.body.language}";
     `, (err, response) => {
-        //random crash??
         if (err) { res.sendStatus(500); res.end(); return; }
         res.status(200).json({
             availableStrings: response[0][0].allStrings,
@@ -167,7 +166,8 @@ app.route("/login").post((req, res) => {
 })
 
 app.route("/refreshUserInformation").post((req, res) => {
-    // if (!req.body.jwtToken) return res.sendStatus(200);
+    if (!req.body.jwtToken) return res.sendStatus(200);
+    console.log(req.body)
     let decodedJwtToken = jwt.decode(req.body.jwtToken, { algorithm: "RS256" });
     let timeDifference = parseInt((new Date(Number(req.body.expiresAt)) - new Date()) / 1000);
     let conn = mysqlConnect();
@@ -184,9 +184,7 @@ app.route("/refreshUserInformation").post((req, res) => {
             algorithm: "RS256",
             expiresIn: timeDifference
         });
-        res.status(200).json({
-            jwtToken: jwtBearerToken
-        });
+        res.status(200).json({jwtBearerToken});
         return conn.end();
     });
 });
